@@ -1,0 +1,15 @@
+{
+  "name": "cli-ls",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Herwin Bozet",
+  "license": "ISC",
+  "dependencies": {
+    "command-line-args": "^4.0.1",
+    "command-line-usage": "^4.0.0"
+  }
+}
