@@ -2,63 +2,79 @@ const fs = require('fs');
 const path = require('path');
 const cliArgs = require('command-line-args');
 const cliUsage = require('command-line-usage');
+const chalk = require('chalk');
+const supportsColor = require('supports-color');
 
 // Declaring Options
 const cliOptions = [
 	{
 		name: 'all',
 		alias: 'a',
-		description: 'do not ignore entries starting with .',
+		description: 'Do not ignore entries starting with .',
 		type: Boolean
 	},
 	{
 		name: 'almost-all',
 		alias: 'A',
-		description: 'do not list implied . and ..',
+		description: 'Do not list implied . and ..',
+		type: Boolean
+	},
+	{
+		name: 'debug',
+		alias: 'd',
+		description: 'TEMP: output some debug informations.',
+		type: Boolean
+	},
+	{
+		name: 'reverse',
+		alias: 'r',
+		description: 'Reverse order while sorting',
 		type: Boolean
 	},
 	{
 		name: 'recursive',
 		alias: 'R',
-		description: 'DESC',
+		description: 'List subdirectories recursively',
 		type: Boolean
 	},
 	{
 		name: 'src',
-		description: 'TEMP: folder to list.',
+		description: 'TEMP: folder(s) to list.',
 		type: String,
-		//multiple: false,
+		multiple: false,
 		defaultOption: true
 	},
 	{
 		name: 'help',
-		description: 'display this help and exit',
+		description: 'Display this help and exit',
 		type: Boolean
 	},
 	{
 		name: 'version',
-		description: 'output version information and exit',
+		description: 'Output version information and exit',
 		type: Boolean
 	}
 ];
 
 // Declaring help text structure
-// http://man7.org/linux/man-pages/man1/ls.1.html
 const cliHelp = [
 	{
-		header: 'SYNOPSIS',
-		content: 'ls [[italic]{OPTION}]... [[italic]{FILE}]...'
+		header: 'USAGE:',
+		content: [
+			'ls [[italic]{OPTION}]... [[italic]{FILE}]...', //the [FILE]... isn't supported yet. - just make a loop...
+			'ls -a C:\\'
+		]
 	},
 	{
-		header: 'DESCRIPTION',
-		content: 'List information about the FILEs (the current directory by default).'
+		header: 'DESCRIPTION:',
+		content: 'List information about the FILE(s) (the current directory by default).'
 	},
 	{
-		header: 'OPTIONS',
+		header: 'OPTIONS:',
 		optionList: cliOptions
 	},
 	{
-		header: 'EXIT STATUS',
+		header: 'EXIT STATUS:',
 		content: [
 			'0   if OK.',
 			'1   if minor problems (e.g., cannot access subdirectory).',
@@ -77,7 +93,25 @@ try {
 } catch(err) {
 	switch(err.name) {
 		case "UNKNOWN_OPTION":
-			console.log("Error: Unknown option");
+			console.log("Error: Unknown option used.");
+			break;
+		case "NAME_MISSING":
+			console.log("Internal error: An option's name is missing.");
+			break;
+		case "INVALID_TYPE":
+			console.log("Internal error: INVALID_TYPE.");
+			break;
+		case "INVALID_ALIAS":
+			console.log("Internal error: INVALID_ALIAS.");
+			break;
+		case "DUPLICATE_NAME":
+			console.log("Internal error: Defined two or more options with the same name.");
+			break;
+		case "DUPLICATE_ALIAS":
+			console.log("Internal error: Defined two or more options with the same alias.");
+			break;
+		case "DUPLICATE_DEFAULT_OPTION":
+			console.log("Internal error: More than one default option is defined.");
 			break;
 		default:
 			console.log("Unknown error: %s", err.name);
@@ -95,34 +129,25 @@ if(options.version) {
 	console.log("Version 0.0.1?");
 	process.exit(0);
 }
+if(options.debug) {
+	console.log("cli-ls debug:");
+	
+	console.log('Terminal basic color support: %s', supportsColor ? "yes" : "no");
+	console.log('Terminal 256 colors support: %s', supportsColor.has256 ? "yes" : "no");
+	console.log('Terminal truecolor support: %s', supportsColor.has16m ? "yes" : "no");
+	console.log("Terminal size: %sx%s", process.stdout.columns, process.stdout.rows);
+	
+	console.log("Launch options: %s", JSON.stringify(options));
+	process.exit(0);
+}
 
+// Setting "C:" as the src outputs a strange normalized path.
 // TODO: Check if it is still needed after removing the src option.
 var sourceFolder = (options.src == null) ? "./" : path.normalize(options.src);
 if(!fs.existsSync(sourceFolder)) {
 	console.log("Error: Invalid path (%s)", sourceFolder);
 	process.exit(1); // Might change the exit code
 }
-
-//Using "C:" is acting strange.
-//console.log(options);
-//console.log(sourceFolder);
-
-/*if(fs.existsSync(sourceFolder)) {
-	console.log("Valid path");
-} else {
-	console.log("Invalid path");
-}
-
-sourceFolder = path.normalize(sourceFolder);
-console.log(sourceFolder);
-
-if(fs.existsSync(sourceFolder)) {
-	console.log("Valid path");
-} else {
-	console.log("Invalid path");
-}/**/
-
-//console.log(fs.readdirSync(sourceFolder));
 
 walkFolderContent(sourceFolder);
 
@@ -131,22 +156,32 @@ function walkFolderContent(dir) {
 	var files = getFolderContent(dir);
 	var folders = [];
 	var filelist = [];
+	var filecolor = []; //0-Folder 1-File
 	
 	files.forEach(function(file) {
-		if(fs.statSync(path.join(dir, file)).isDirectory()) {
-			// --DIRECTORIES--
-			if(options.recursive) {
-				//console.log("A: %s -> %s", dir, file);
-				folders.push(path.join(/*dir,*/ file));
+		try {
+			if(fs.statSync(path.join(dir, file)).isDirectory()) {
+				// --DIRECTORIES--
+				if(options.recursive) {
+					folders.push(path.join(/*dir,*/ file));
+				}
+				filelist.push(path.join(/*dir,*/ file, "/"));
+				filecolor.push(0);
+			} else {
+				// --FILES--
+				filelist.push(path.join(/*dir,*/ file));
+				filecolor.push(1);
 			}
-			filelist.push(path.join(/*dir,*/ file, "/"));
-		} else {
-			// --FILES--
-			filelist.push(path.join(/*dir,*/ file));
+		} catch(err) {
+		  //console.log(err.code); //TempFix - hyberfil.sys was causing an error.
 		}
 	});
 	
-	printFolderContent(dir, filelist);
+	if(options.reverse) {
+		filelist = filelist.reverse();
+	}
+	
+	printFolderContent(dir, filelist, filecolor);
 	
 	if(options.recursive) {
 		folders.forEach(function(folder) {
@@ -156,11 +191,12 @@ function walkFolderContent(dir) {
 }
 
 //TEMP function, will be changed when adding -a,-A,... support
+//Throws an error when reading some protected folders (C:\Windows\...)
 function getFolderContent(dir) {
 	return fs.readdirSync(dir);
 }
 
-function printFolderContent(dir, filelist) {
+function printFolderContent(dir, filelist, filecolor) {
 	if(options.recursive) {
 		console.log("%s:", path.normalize(dir));
 	}
@@ -178,6 +214,15 @@ function printFolderContent(dir, filelist) {
 		rawWidth += file.length;
 	});
 	
+	//Coloring text
+	for(var i=0; i<filelist.length; i++) {
+		if(filecolor[i] == 0) {
+			//Quick "fix"
+			filelist[i] = chalk.cyan(filelist[i].slice(0, -1))+filelist[i].slice(-1);
+		}
+	}
+	
+	//Printing non-list text
 	if(rawWidth+filelist.length*separatorWidth >= promptWidth) {
 		// Multiple lines
 		var filesPerLine = Math.floor((promptWidth-1) / maxWidth);
@@ -196,8 +241,9 @@ function printFolderContent(dir, filelist) {
 		}
 	} else {
 		//Single Line
-		console.log(filelist.join(Array(separatorWidth).join(" ")));
+		console.log((options.recursive ? " " : "") + filelist.join(Array(separatorWidth).join(" ")));
 	}
 	
+	// Causes a double line return at the end!
 	console.log();
 }

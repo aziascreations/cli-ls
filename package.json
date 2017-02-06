@@ -1,6 +1,6 @@
 {
   "name": "cli-ls",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -9,7 +9,9 @@
   "author": "Herwin Bozet",
   "license": "ISC",
   "dependencies": {
+    "chalk": "^1.1.3",
     "command-line-args": "^4.0.1",
-    "command-line-usage": "^4.0.0"
+    "command-line-usage": "^4.0.0",
+    "supports-color": "^3.2.3"
   }
 }
