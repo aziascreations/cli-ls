@@ -1,17 +1,41 @@
 {
-  "name": "cli-ls",
-  "version": "0.0.2",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "Herwin Bozet",
-  "license": "ISC",
-  "dependencies": {
-    "chalk": "^1.1.3",
-    "command-line-args": "^4.0.1",
-    "command-line-usage": "^4.0.0",
-    "supports-color": "^3.2.3"
-  }
+	"name": "cli-ls",
+	"version": "0.1.1",
+	"description": "A simple version of the ls command to replace window's dir command",
+	"license": "WTFPL",
+	"repository": "aziascreations/cli-ls",
+	"author": {
+		"name": "Herwin Bozet",
+		"url": "https://github.com/aziascreations"
+	},
+	"bin": {
+		"ls": "./index.js"
+	},
+	"files": [
+		"index.js"
+	],
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"keywords": [
+		"ls",
+		"windows",
+		"dir",
+		"cli"
+	],
+	"bugs": {
+		"url": "https://github.com/aziascreations/cli-ls/issues",
+		"email": "herwin.bozet@gmail.com"
+	},
+	"dependencies": {
+		"chalk": "^1.1.3",
+		"command-line-args": "^4.0.1",
+		"command-line-usage": "^4.0.0",
+		"dateformat": "^2.0.0",
+		"glob": "^7.1.1",
+		"pretty-bytes": "^4.0.2",
+		"supports-color": "^3.2.3",
+		"text-table": "^0.2.0",
+		"winattr": "^2.0.0"
+	}
 }

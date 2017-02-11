@@ -58,5 +58,5 @@ typings/
 # Custom
 notes.txt
 output*.txt
-
-
+examples/
+index.min.js

@@ -1,11 +1,19 @@
+// Importing NodeJS and npm modules
 const fs = require('fs');
 const path = require('path');
+
+const chalk = require('chalk');
 const cliArgs = require('command-line-args');
 const cliUsage = require('command-line-usage');
-const chalk = require('chalk');
+const dateFormat = require('dateformat');
+const glob = require('glob');
+const prettyBytes = require('pretty-bytes');
 const supportsColor = require('supports-color');
+const table = require('text-table');
+const winattr = require('winattr');
 
-// Declaring Options
+// Declaring "command-line-args" options
+// This comment is here so I can hide this in Brackets
 const cliOptions = [
 	{
 		name: 'all',
@@ -16,19 +24,43 @@ const cliOptions = [
 	{
 		name: 'almost-all',
 		alias: 'A',
-		description: 'Do not list implied . and ..',
+		description: 'do not list implied . and ..',
 		type: Boolean
 	},
 	{
 		name: 'debug',
 		alias: 'd',
-		description: 'TEMP: output some debug informations.',
+		description: 'Display some debugging informations and exit',
 		type: Boolean
 	},
 	{
-		name: 'reverse',
-		alias: 'r',
-		description: 'Reverse order while sorting',
+		name: 'classify',
+		alias: 'F',
+		description: 'Append indicator (one of */=>@|) to entries',
+		type: Boolean
+	},
+	{
+		name: 'human-readable',
+		alias: 'h',
+		description: 'With -l and/or -s, print human readable sizes (e.g., 1K 234M 2G)',
+		type: Boolean
+	},
+	{
+		name: 'list',
+		alias: 'l',
+		description: 'Use a long listing format',
+		type: Boolean
+	},
+	{
+		name: 'comma',
+		alias: 'm',
+		description: 'Fill width with a comma separated list of entries',
+		type: Boolean
+	},
+	{
+		name: 'indicator-style',
+		alias: 'p',
+		description: 'Unfinished: Append / indicator to directories',
 		type: Boolean
 	},
 	{
@@ -38,8 +70,13 @@ const cliOptions = [
 		type: Boolean
 	},
 	{
+		name: 'show-control-chars',
+		description: 'Unused: show nongraphic characters as-is (the default, unless program is \'ls\' and output is a terminal)',
+		type: Boolean
+	},
+	{
 		name: 'src',
-		description: 'TEMP: folder(s) to list.',
+		description: 'TEMP: folder(s) to list',
 		type: String,
 		multiple: false,
 		defaultOption: true
@@ -55,36 +92,6 @@ const cliOptions = [
 		type: Boolean
 	}
 ];
-
-// Declaring help text structure
-const cliHelp = [
-	{
-		header: 'USAGE:',
-		content: [
-			'ls [[italic]{OPTION}]... [[italic]{FILE}]...', //the [FILE]... isn't supported yet. - just make a loop...
-			'ls -a C:\\'
-		]
-	},
-	{
-		header: 'DESCRIPTION:',
-		content: 'List information about the FILE(s) (the current directory by default).'
-	},
-	{
-		header: 'OPTIONS:',
-		optionList: cliOptions
-	},
-	{
-		header: 'EXIT STATUS:',
-		content: [
-			'0   if OK.',
-			'1   if minor problems (e.g., cannot access subdirectory).',
-			'2   if serious trouble (e.g., cannot access command-line argument).'
-		]
-	}
-];
-
-// [Parsing/Processing?] help text
-const usage = cliUsage(cliHelp);
 
 // Parsing cli arguments
 var options;
@@ -117,133 +124,365 @@ try {
 			console.log("Unknown error: %s", err.name);
 			break;
 	}
+	//TODO: find a way to show it
+	console.log(err);
 	process.exit(2);
 }
 
+// http://www.thepreparednesspodcast.com/quick-list-on-executable-file-extensions-updated/
+const execFileExt = [
+	//"action",
+	//"apk",
+	//"app",
+	"bat",
+	"bin",
+	"cmd",
+	"com",
+	//"command",
+	"cpl",
+	//"csh",
+	"exe",
+	"gadget",
+	//"inf",
+	"ins",
+	"inx",
+	//"ipa",
+	"isu",
+	"job",
+	"jse",
+	//"ksh",
+	//"lnk", ??? symlink
+	"msc",
+	"msi",
+	"msp",
+	"mst",
+	//"osx",
+	//"out",
+	"paf",
+	"pif",
+	//"prg",
+	"ps1",
+	"reg",
+	"rgs",
+	//"run",
+	"sct",
+	"sh",
+	"shb",
+	"shs",
+	"u3p",
+	"vb",
+	"vbe",
+	"vbs",
+	"vbscript",
+	//"workflow",
+	"ws",
+	"wsf"
+]
+
 // Help & Version things
 if(options.help) {
-	console.log(usage);
+	// Help text structure
+	var cliHelp = [
+		{
+			header: 'USAGE:',
+			content: [
+				'ls [[italic]{OPTION}]... [[italic]{FILE}]...', //the [FILE]... isn't supported yet. - just make a loop...
+				'ls -a C:\\'
+			]
+		},
+		{
+			header: 'DESCRIPTION:',
+			content: 'List information about the FILE(s) (the current directory by default).'
+		},
+		{
+			header: 'OPTIONS:',
+			optionList: cliOptions
+		},
+		{
+			header: 'EXIT STATUS:',
+			content: [
+				'0   if OK.',
+				'1   if minor problems (e.g., cannot access subdirectory).',
+				'2   if serious trouble (e.g., cannot access command-line argument).'
+			]
+		}
+	];
+	console.log(cliUsage(cliHelp));
 	process.exit(0);
 }
 if(options.version) {
-	console.log("Version 0.0.1?");
-	process.exit(0);
-}
-if(options.debug) {
-	console.log("cli-ls debug:");
-	
-	console.log('Terminal basic color support: %s', supportsColor ? "yes" : "no");
-	console.log('Terminal 256 colors support: %s', supportsColor.has256 ? "yes" : "no");
-	console.log('Terminal truecolor support: %s', supportsColor.has16m ? "yes" : "no");
-	console.log("Terminal size: %sx%s", process.stdout.columns, process.stdout.rows);
-	
-	console.log("Launch options: %s", JSON.stringify(options));
+	console.log("Version 0.1.1");
 	process.exit(0);
 }
 
 // Setting "C:" as the src outputs a strange normalized path.
-// TODO: Check if it is still needed after removing the src option.
-var sourceFolder = (options.src == null) ? "./" : path.normalize(options.src);
-if(!fs.existsSync(sourceFolder)) {
-	console.log("Error: Invalid path (%s)", sourceFolder);
-	process.exit(1); // Might change the exit code
+// Reading the --src arg and doing some magic
+var currentWorkingDir = (options.src == null) ? process.cwd() : path.normalize(options.src);
+if(!fs.existsSync(currentWorkingDir)) {
+	console.error("Error: Invalid path (%s)", currentWorkingDir);
+	process.exit(1);
+}
+try {
+	process.chdir(currentWorkingDir);
+} catch(err) {
+	console.error("Error: Unable to change the working directory (%s)", currentWorkingDir);
+	console.error(err);
+	process.exit(1);
 }
 
-walkFolderContent(sourceFolder);
+// Declaring and setting up glob options
+var globOptions = {
+	dot: false,
+	recursive: false,
+	fullMode: false,
+	suffix: false
+};
 
-function walkFolderContent(dir) {
-	//console.log("Directory: %s", dir);
-	var files = getFolderContent(dir);
-	var folders = [];
-	var filelist = [];
-	var filecolor = []; //0-Folder 1-File
+// Setting up the glob options
+globOptions.pattern = "*";
+
+if(options.all)
+	globOptions.dot = true;
+if(options.recursive)
+	globOptions.recursive = true;
+if(options.list)
+	globOptions.fullMode = true;
+
+// Output debug informations
+if(options.debug) {
+	console.log("cli-ls debug:\n");
+	
+	console.log("Launch options:\n  %s\n", JSON.stringify(options));
+	
+	console.log("Glob options:\n  %s\n", JSON.stringify(globOptions));
+	
+	console.log("Chalk Test:");
+	console.log("  %s, %s, %s, %s, %s, %s, %s, %s",
+		chalk.reset(chalk.red("reset")), chalk.bold("bold"), chalk.dim("dim"),
+		chalk.italic("italic"), chalk.underline("underline"), chalk.inverse("inverse"),
+		chalk.hidden("hidden"), chalk.strikethrough("strikethrough")
+	);
+	console.log("  %s, %s, %s, %s, %s, %s, %s, %s, %s",
+		chalk.red("red"), chalk.green("green"), chalk.yellow("yellow"),
+		chalk.blue("blue"), chalk.magenta("magenta"), chalk.cyan("cyan"), 
+		chalk.white("white"), chalk.gray("gray"), chalk.black("black")
+	);
+	console.log("  %s, %s, %s, %s, %s, %s, %s, %s\n",
+		chalk.bgRed("red"), chalk.bgGreen("green"), chalk.bgYellow("yellow"),
+		chalk.bgBlue("blue"), chalk.bgMagenta("magenta"), chalk.bgCyan("cyan"),
+		chalk.bgWhite("white"), chalk.bgBlack("black")
+	);
+	
+	console.log("Terminal Informations:");
+	console.log("  Basic color support: %s", supportsColor ? "yes" : "no");
+	console.log("  256 colors support: %s", supportsColor.has256 ? "yes" : "no");
+	console.log("  Truecolor support: %s", supportsColor.has16m ? "yes" : "no");
+	console.log("  Size: %sx%s", process.stdout.columns, process.stdout.rows);
+	process.exit(0);
+}
+
+glob.glob(globOptions.pattern, globOptions, function(err, files) {
+	if(err)
+		console.error(err);
+	
+	simpleDirWalk(files, false);
+	
+	if(options.recursive)
+		recursiveDirWalk(files);
+});
+
+function simpleDirWalk(files, wasFiltered) {
+	if(!wasFiltered)
+		files = filterWindowsHiddenFiles(files);
+	
+	if(options.list)
+		printList(files);
+	else if(options.comma)
+		printCommaLines(files);
+	else
+		printDefaultLines(files);
+}
+
+// Used with -R / --recursive
+function recursiveDirWalk(files) {
+	console.log("");
+	
+	//Has to be called here too so hidden folder aren't listed.
+	files = filterWindowsHiddenFiles(files);
+	
+	files.forEach(function(filePath) {
+		var fileStat = getFileStats(filePath);
+		
+		if(fileStat.isDirectory) {
+			var fileName = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
+			console.log(chalk.cyan('./' + fileName + ':'));
+			
+			var dirFiles = glob.sync(path.join(filePath, '*'), globOptions);
+			simpleDirWalk(dirFiles, true);
+			recursiveDirWalk(dirFiles);
+		}
+	});
+}
+
+//Not optimised at all...
+function filterWindowsHiddenFiles(files) {
+	if(options["almost-all"] || options.all)
+		return files;
+	
+	var newFiles = [];
 	
 	files.forEach(function(file) {
-		try {
-			if(fs.statSync(path.join(dir, file)).isDirectory()) {
-				// --DIRECTORIES--
-				if(options.recursive) {
-					folders.push(path.join(/*dir,*/ file));
-				}
-				filelist.push(path.join(/*dir,*/ file, "/"));
-				filecolor.push(0);
-			} else {
-				// --FILES--
-				filelist.push(path.join(/*dir,*/ file));
-				filecolor.push(1);
-			}
-		} catch(err) {
-		  //console.log(err.code); //TempFix - hyberfil.sys was causing an error.
-		}
-	});
-	
-	if(options.reverse) {
-		filelist = filelist.reverse();
-	}
-	
-	printFolderContent(dir, filelist, filecolor);
-	
-	if(options.recursive) {
-		folders.forEach(function(folder) {
-			walkFolderContent(path.join(dir, folder));
-		});
-	}
-}
-
-//TEMP function, will be changed when adding -a,-A,... support
-//Throws an error when reading some protected folders (C:\Windows\...)
-function getFolderContent(dir) {
-	return fs.readdirSync(dir);
-}
-
-function printFolderContent(dir, filelist, filecolor) {
-	if(options.recursive) {
-		console.log("%s:", path.normalize(dir));
-	}
-	
-	//I couldn't find a good module for this.
-	var separatorWidth = 4;
-	var promptWidth = process.stdout.columns;
-	var maxWidth = 1; //Biggest file name
-	var rawWidth = 1;
-	
-	filelist.forEach(function(file) {
-		if(maxWidth < file.length+separatorWidth) {
-			maxWidth = file.length+separatorWidth;
-		}
-		rawWidth += file.length;
-	});
-	
-	//Coloring text
-	for(var i=0; i<filelist.length; i++) {
-		if(filecolor[i] == 0) {
-			//Quick "fix"
-			filelist[i] = chalk.cyan(filelist[i].slice(0, -1))+filelist[i].slice(-1);
-		}
-	}
-	
-	//Printing non-list text
-	if(rawWidth+filelist.length*separatorWidth >= promptWidth) {
-		// Multiple lines
-		var filesPerLine = Math.floor((promptWidth-1) / maxWidth);
+		var fileAttributes = getFileAttributes(file, false);
+		if(!fileAttributes)
+			return;
 		
-		for(var i=0; i<Math.ceil(filelist.length / filesPerLine); i++) {
-			var line = " ";
-			
-			for(var j=0; j<filesPerLine; j++) {
-				if(i*filesPerLine+j >= filelist.length) {
-					continue;
-				}
-				line += filelist[i*filesPerLine+j];
-				line += Array(maxWidth-(filelist[i*filesPerLine+j].length)).join(" ");
-			}
-			console.log(line);
+		if(!fileAttributes.hidden)
+			newFiles.push(file);
+	});
+	
+	return newFiles;
+}
+
+// Used by default
+function printDefaultLines(files) {
+	var output = "";
+	
+	for(var i = 0; i < files.length; i++) {
+		// If the width of the text more of a console window, stop the summation
+		if(output.length > process.stdout.columns) {
+			output = false;
+			break;
 		}
-	} else {
-		//Single Line
-		console.log((options.recursive ? " " : "") + filelist.join(Array(separatorWidth).join(" ")));
+		var fileStat = getFileStats(files[i]);
+		var fileName = appendFileSuffix(path.basename(files[i]), fileStat);
+		output += (fileStat.isDirectory) ? chalk.cyan(fileName) + '    ' : fileName + '    ';
 	}
 	
-	// Causes a double line return at the end!
-	console.log();
+	if(!output) {
+		files.forEach(function(file) {
+			var fileStat = getFileStats(file);
+			var fileName = appendFileSuffix(path.basename(file), fileStat);
+			fileName = fileStat.isDirectory ? chalk.cyan(fileName) : fileName;
+			
+			console.log(fileName);
+		});
+	} else {
+		console.log(output);
+	}
+}
+
+// Used with -m / --comma
+function printCommaLines(files) {
+	var output = "",
+		usedWidth = 0;
+	
+	for(var i = 0; i < files.length; i++) {
+		var fileStat = getFileStats(files[i]);
+		var fileName = appendFileSuffix(path.basename(files[i]), fileStat);
+		var a = (fileStat.isDirectory) ? chalk.cyan(fileName) + ', ' : fileName + ', ';
+		
+		//The "-2" seems to fix some issues.
+		if(usedWidth+fileName.length+2 >= process.stdout.columns-2) {
+			console.log(output);
+			output = "";
+			usedWidth = 0;
+		}
+		usedWidth += fileName.length+2;
+		output += a;
+	}
+	
+	console.log(output);
+}
+
+// Used with -l / --list
+function printList(files) {
+	var filesArray = [];
+	
+	files.forEach(function(file) {
+		var fileStat = getFileStats(file);
+		var fileName = appendFileSuffix(path.basename(file), fileStat);
+		var fileBirtTime = fileStat.birthtime;
+		
+		fileName = fileStat.isDirectory ? chalk.cyan(fileName) : fileName;
+		
+		if(!fileStat) {
+			filesArray.push([
+				" " + (fileStat.isDirectory ?"d":"-") + "????",
+				"/",
+				"/",
+				"/",
+				chalk.red(fileName)
+			]);
+			return;
+		}
+		
+		filesArray.push([
+			" " + (fileStat.isDirectory ?"d":"-") + getFileAttributes(file, true),
+			fileStat.size,
+			dateFormat(fileBirtTime, 'mmm dd'),
+			dateFormat(fileBirtTime, 'hh:MM'),
+			fileName
+		]);
+	});
+	
+	console.log(table(filesArray, { align: ['l', 'r', 'r', 'r', 'l'] }));
+}
+
+// Does Windows has FIFOs, sockets and doors ?
+function appendFileSuffix(fileName, fileStat) {
+	if(!options.classify && !options["indicator-style"])
+		return fileName;
+	
+	if(fileStat.isDirectory)
+		fileName += chalk.reset("/");
+		//return fileName + chalk.reset("/");
+		//fileName = chalk.cyan(fileName) + "/";
+	
+	if(!options.classify)
+		return fileName;
+	
+	// Doesn't work... (tested with mklink on Windows)
+	if(fileStat.isSymbolicLink())
+		fileName += chalk.reset("@");
+	
+	cleanedFileName = fileName.split('\\').pop().split('/').pop().toLowerCase();
+	fileExt = (cleanedFileName.lastIndexOf(".") < 1) ? "" : cleanedFileName.substr(cleanedFileName.lastIndexOf(".") + 1);
+	if(execFileExt.indexOf(fileExt) > -1)
+		fileName = chalk.yellow(fileName) + "*";
+	
+	return fileName;
+}
+
+// Used with -l / --list for the files attributes
+function getFileAttributes(filePath, simplifiedOutput) {
+	try {
+		var fileAttributes = winattr.getSync(filePath);
+		if(simplifiedOutput) {
+			var output = "";
+			output += fileAttributes.archive ? "a" : "-"; //Compressed or compressable ?
+			output += fileAttributes.hidden ? "h" : "-";
+			output += fileAttributes.readonly ? "r" : "-";
+			output += fileAttributes.system ? "s" : "-"; // Test C:\hiberfil.sys
+			return output;
+		} else {
+			return fileAttributes;
+		}
+	} catch(err) {
+		return (simplifiedOutput) ? "????" : false;
+	}
+}
+
+function getFileStats(filePath) {
+	try {
+		var fileStats = fs.statSync(filePath);
+		
+		fileStats.isDirectory = Boolean(fileStats.isDirectory());
+		
+		if(options["human-readable"] && options.list)
+			fileStats.size = prettyBytes(fileStats.size);
+		
+		return fileStats;
+	} catch(err) {
+		return false;
+	}
 }
