@@ -18,13 +18,13 @@ const cliOptions = [
 	{
 		name: 'all',
 		alias: 'a',
-		description: 'Do not ignore entries starting with .',
+		description: 'Do not ignore hidden entries and/or entries starting with .',
 		type: Boolean
 	},
 	{
 		name: 'almost-all',
 		alias: 'A',
-		description: 'do not list implied . and ..',
+		description: 'Do not ignore hidden entries and do not list implied . and ..',
 		type: Boolean
 	},
 	{
@@ -71,7 +71,7 @@ const cliOptions = [
 	},
 	{
 		name: 'show-control-chars',
-		description: 'Unused: show nongraphic characters as-is (the default, unless program is \'ls\' and output is a terminal)',
+		description: 'TEMP: Used to prevent some aliases errors.',
 		type: Boolean
 	},
 	{
@@ -211,7 +211,8 @@ if(options.help) {
 	process.exit(0);
 }
 if(options.version) {
-	console.log("Version 0.1.1");
+	var pkgjson = require('./package.json');
+	console.log(pkgjson.version);
 	process.exit(0);
 }
 

@@ -41,20 +41,24 @@ New or changed options are in bold.
 
 Short | Long | Effect
 --- | --- | ---
--a | --all | Do not ignore entries starting with .
+**-a** | **--all** | Do not ignore hidden entries and/or entries starting with .
+**-A** | **--almost-all** | Do not ignore hidden entries and do not list implied . and ..
+**-d** | **--debug** | Display some debugging informations and exit
+**-F** | **--classify** | Append indicator (one of */=>@|) to entries
 -h | --human-readable | With -l and/or -s, print human readable sizes (e.g., 1K 234M 2G)
 -l | --list | Use a long listing format
 -m | --comma | Fill width with a comma separated list of entries
+-p | --indicator-style | **Unfinished:** Append / indicator to directories
 -R | --recursive | List subdirectories recursively
  | --help | Display the help and exit
  | --version | Output version information and exit
+ | **--src** | **TEMP:** folder(s) to list
+ | **--show-control-chars** | **TEMP:** Used to prevent some aliases errors.
 
-### Temporary Options:
+### Changes made:
 
-Option | Effect
---- | ---
---debug | Display some debugging informations and exit
---src | TEMP: folder(s) to list
+**-a** & **-A**: Shows files and folder with the H (hidden) or S (system) flags, which are ignored by default.<br>
+**-F**: Only appends (*/@) to files and folders.
 
 ## Requirements
 
