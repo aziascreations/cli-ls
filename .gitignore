@@ -60,4 +60,5 @@ notes.txt
 output*.txt
 examples/
 index.min.js
+constants.min.js
 out2.txt

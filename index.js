@@ -1,7 +1,6 @@
-// Importing NodeJS and npm modules
+/* Importing NodeJS and npm modules */
 const fs = require('fs');
 const path = require('path');
-
 const chalk = require('chalk');
 const cliArgs = require('command-line-args');
 const cliUsage = require('command-line-usage');
@@ -11,92 +10,12 @@ const prettyBytes = require('pretty-bytes');
 const supportsColor = require('supports-color');
 const table = require('text-table');
 const winattr = require('winattr');
+const constants = require('./constants');
 
-// Declaring "command-line-args" options
-// This comment is here so I can hide this in Brackets
-const cliOptions = [
-	{
-		name: 'all',
-		alias: 'a',
-		description: 'Do not ignore hidden entries and/or entries starting with .',
-		type: Boolean
-	},
-	{
-		name: 'almost-all',
-		alias: 'A',
-		description: 'Do not ignore hidden entries and do not list implied . and ..',
-		type: Boolean
-	},
-	{
-		name: 'debug',
-		alias: 'd',
-		description: 'Display some debugging informations and exit',
-		type: Boolean
-	},
-	{
-		name: 'classify',
-		alias: 'F',
-		description: 'Append indicator (one of */=>@|) to entries',
-		type: Boolean
-	},
-	{
-		name: 'human-readable',
-		alias: 'h',
-		description: 'With -l and/or -s, print human readable sizes (e.g., 1K 234M 2G)',
-		type: Boolean
-	},
-	{
-		name: 'list',
-		alias: 'l',
-		description: 'Use a long listing format',
-		type: Boolean
-	},
-	{
-		name: 'comma',
-		alias: 'm',
-		description: 'Fill width with a comma separated list of entries',
-		type: Boolean
-	},
-	{
-		name: 'indicator-style',
-		alias: 'p',
-		description: 'Unfinished: Append / indicator to directories',
-		type: Boolean
-	},
-	{
-		name: 'recursive',
-		alias: 'R',
-		description: 'List subdirectories recursively',
-		type: Boolean
-	},
-	{
-		name: 'show-control-chars',
-		description: 'TEMP: Used to prevent some aliases errors.',
-		type: Boolean
-	},
-	{
-		name: 'src',
-		description: 'TEMP: folder(s) to list',
-		type: String,
-		multiple: false,
-		defaultOption: true
-	},
-	{
-		name: 'help',
-		description: 'Display this help and exit',
-		type: Boolean
-	},
-	{
-		name: 'version',
-		description: 'Output version information and exit',
-		type: Boolean
-	}
-];
-
-// Parsing cli arguments
+/* Parsing arguments */
 var options;
 try {
-	options = cliArgs(cliOptions);
+	options = cliArgs(constants.cliOptions);
 } catch(err) {
 	switch(err.name) {
 		case "UNKNOWN_OPTION":
@@ -129,59 +48,8 @@ try {
 	process.exit(2);
 }
 
-// http://www.thepreparednesspodcast.com/quick-list-on-executable-file-extensions-updated/
-const execFileExt = [
-	//"action",
-	//"apk",
-	//"app",
-	"bat",
-	"bin",
-	"cmd",
-	"com",
-	//"command",
-	"cpl",
-	//"csh",
-	"exe",
-	"gadget",
-	//"inf",
-	"ins",
-	"inx",
-	//"ipa",
-	"isu",
-	"job",
-	"jse",
-	//"ksh",
-	//"lnk", ??? symlink
-	"msc",
-	"msi",
-	"msp",
-	"mst",
-	//"osx",
-	//"out",
-	"paf",
-	"pif",
-	//"prg",
-	"ps1",
-	"reg",
-	"rgs",
-	//"run",
-	"sct",
-	"sh",
-	"shb",
-	"shs",
-	"u3p",
-	"vb",
-	"vbe",
-	"vbs",
-	"vbscript",
-	//"workflow",
-	"ws",
-	"wsf"
-]
-
-// Help & Version things
+/* If --help is used, prints the help text */
 if(options.help) {
-	// Help text structure
 	var cliHelp = [
 		{
 			header: 'USAGE:',
@@ -196,7 +64,7 @@ if(options.help) {
 		},
 		{
 			header: 'OPTIONS:',
-			optionList: cliOptions
+			optionList: constants.cliOptions
 		},
 		{
 			header: 'EXIT STATUS:',
@@ -210,14 +78,15 @@ if(options.help) {
 	console.log(cliUsage(cliHelp));
 	process.exit(0);
 }
+
+/* if --version is used, prints the version number */
 if(options.version) {
 	var pkgjson = require('./package.json');
 	console.log(pkgjson.version);
 	process.exit(0);
 }
 
-// Setting "C:" as the src outputs a strange normalized path.
-// Reading the --src arg and doing some magic
+/* Normalizing the working directory */
 var currentWorkingDir = (options.src == null) ? process.cwd() : path.normalize(options.src);
 if(!fs.existsSync(currentWorkingDir)) {
 	console.error("Error: Invalid path (%s)", currentWorkingDir);
@@ -231,16 +100,15 @@ try {
 	process.exit(1);
 }
 
-// Declaring and setting up glob options
+/* Declaring and setting up the glob options */
+
 var globOptions = {
 	dot: false,
 	recursive: false,
 	fullMode: false,
-	suffix: false
+	suffix: false,
+	pattern: "*"
 };
-
-// Setting up the glob options
-globOptions.pattern = "*";
 
 if(options.all)
 	globOptions.dot = true;
@@ -249,9 +117,11 @@ if(options.recursive)
 if(options.list)
 	globOptions.fullMode = true;
 
-// Output debug informations
+/* If -d or --debug is used, prints some debugging informations */
 if(options.debug) {
 	console.log("cli-ls debug:\n");
+	
+	console.log("Current Working directorie(s): %s\n", currentWorkingDir);
 	
 	console.log("Launch options:\n  %s\n", JSON.stringify(options));
 	
@@ -282,6 +152,7 @@ if(options.debug) {
 	process.exit(0);
 }
 
+// TODO: make a loop for the multiple arguments for --src
 glob.glob(globOptions.pattern, globOptions, function(err, files) {
 	if(err)
 		console.error(err);
@@ -372,7 +243,11 @@ function printDefaultLines(files) {
 	}
 }
 
-// Used with -m / --comma
+/**
+ * Used with -m / --comma
+ * ???
+ * @param {???} files - ???
+ */
 function printCommaLines(files) {
 	var output = "",
 		usedWidth = 0;
@@ -395,7 +270,11 @@ function printCommaLines(files) {
 	console.log(output);
 }
 
-// Used with -l / --list
+/**
+ * Used with -l / --list
+ * ???
+ * @param {???} files - ???
+ */
 function printList(files) {
 	var filesArray = [];
 	
@@ -429,15 +308,18 @@ function printList(files) {
 	console.log(table(filesArray, { align: ['l', 'r', 'r', 'r', 'l'] }));
 }
 
-// Does Windows has FIFOs, sockets and doors ?
+/**
+ * ???
+ * @param {string} fileName - The file's path
+ * @param {???} fileStat - ???
+ * @returns {string} - ???
+ */
 function appendFileSuffix(fileName, fileStat) {
 	if(!options.classify && !options["indicator-style"])
 		return fileName;
 	
 	if(fileStat.isDirectory)
 		fileName += chalk.reset("/");
-		//return fileName + chalk.reset("/");
-		//fileName = chalk.cyan(fileName) + "/";
 	
 	if(!options.classify)
 		return fileName;
@@ -448,13 +330,18 @@ function appendFileSuffix(fileName, fileStat) {
 	
 	cleanedFileName = fileName.split('\\').pop().split('/').pop().toLowerCase();
 	fileExt = (cleanedFileName.lastIndexOf(".") < 1) ? "" : cleanedFileName.substr(cleanedFileName.lastIndexOf(".") + 1);
-	if(execFileExt.indexOf(fileExt) > -1)
+	if(constants.execFileExt.indexOf(fileExt) > -1)
 		fileName = chalk.yellow(fileName) + "*";
 	
 	return fileName;
 }
 
-// Used with -l / --list for the files attributes
+/**
+ * Returns the attributes of the given file.
+ * @param {string} filePath - The file's path
+ * @param {Boolean} simplifiedOutput - ???
+ * @returns {string|Object} - ???
+ */
 function getFileAttributes(filePath, simplifiedOutput) {
 	try {
 		var fileAttributes = winattr.getSync(filePath);
@@ -473,6 +360,11 @@ function getFileAttributes(filePath, simplifiedOutput) {
 	}
 }
 
+/**
+ * ???
+ * @param {string} filePath - The file's path
+ * @returns {???|Boolean} - ???
+ */
 function getFileStats(filePath) {
 	try {
 		var fileStats = fs.statSync(filePath);
